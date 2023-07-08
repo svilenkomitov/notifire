@@ -7,6 +7,7 @@ import (
 	"github.com/svilenkomitov/notifire/internal/domain"
 	"github.com/svilenkomitov/notifire/internal/integration"
 	"github.com/svilenkomitov/notifire/internal/integration/mailgun"
+	"github.com/svilenkomitov/notifire/internal/integration/slack"
 	"github.com/svilenkomitov/notifire/internal/integration/twilio"
 	"github.com/svilenkomitov/notifire/internal/mq"
 )
@@ -15,6 +16,7 @@ type service struct {
 	client         *redis.Client
 	mailgunService integration.Service
 	twilioService  integration.Service
+	slackService   integration.Service
 }
 
 func New(config *Config) mq.Service {
@@ -25,6 +27,7 @@ func New(config *Config) mq.Service {
 		client:         redisClient,
 		mailgunService: mailgun.New(mailgun.LoadConfig()),
 		twilioService:  twilio.New(twilio.LoadConfig()),
+		slackService:   slack.New(slack.LoadConfig()),
 	}.Subscribe()
 }
 
@@ -38,6 +41,9 @@ func (s service) Subscribe() mq.Service {
 
 	smsChannel := s.client.Subscribe(string(domain.SMS.ToLower())).Channel()
 	go consumeMessages(smsChannel, s.twilioService.Send)
+
+	slackChannel := s.client.Subscribe(string(domain.SLACK.ToLower())).Channel()
+	go consumeMessages(slackChannel, s.slackService.Send)
 
 	return s
 }
