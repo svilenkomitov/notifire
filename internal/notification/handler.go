@@ -30,6 +30,7 @@ type SendRequest struct {
 }
 
 type Handler struct {
+	EmailService Service
 }
 
 func (h *Handler) Routes(router *chi.Mux) {
@@ -52,7 +53,27 @@ func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respond(w, http.StatusAccepted, nil)
+	notification := Notification{
+		Message: Message{
+			Sender:    requestBody.Message.Sender,
+			Recipient: requestBody.Message.Recipient,
+			Subject:   requestBody.Message.Subject,
+			Body:      requestBody.Message.Body,
+		},
+		Channel: requestBody.Channel,
+	}
+
+	switch requestBody.Channel.ToLower() {
+	case EMAIL:
+		notification, err = h.EmailService.Send(notification)
+		if err != nil {
+			log.Errorf("failed to send message: %v", err)
+			respond(w, http.StatusAccepted, notification)
+			return
+		}
+	}
+
+	respond(w, http.StatusAccepted, notification)
 }
 
 func respond(w http.ResponseWriter, code int, data interface{}) {

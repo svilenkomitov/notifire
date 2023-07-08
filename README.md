@@ -4,6 +4,8 @@ Notification Sending System
 
 ## Installation
 
-```bash
-$ docker-compose up --build -d
-```
+* add env values in ```docker-compose.yaml```
+* install the service
+    ```bash
+    $ docker-compose up --build -d
+    ```

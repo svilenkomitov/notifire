@@ -1,6 +1,6 @@
 package notification
 
 type Service interface {
-	Send(notification Notification) error
-	Validate(notification Notification) (bool, error)
+	Send(notification Notification) (Notification, error)
+	Validate(notification Notification) *ValidationError
 }

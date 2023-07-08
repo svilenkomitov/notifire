@@ -3,6 +3,7 @@ package server
 import (
 	"github.com/go-chi/chi/v5"
 	log "github.com/sirupsen/logrus"
+	"github.com/svilenkomitov/notifire/internal/integrations/mailgun"
 	"github.com/svilenkomitov/notifire/internal/notification"
 	"net/http"
 	"strconv"
@@ -20,7 +21,9 @@ func New(c *Config) *Server {
 }
 
 func initRoutes(router *chi.Mux) {
-	notificationHandler := notification.Handler{}
+	notificationHandler := notification.Handler{
+		EmailService: mailgun.New(mailgun.LoadConfig()),
+	}
 	notificationHandler.Routes(router)
 }
 

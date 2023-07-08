@@ -6,5 +6,7 @@ services:
       context: .
     environment:
       - SERVER_PORT=8080
+      - MAILGUN_DOMAIN=<ADD_MAILGUN_DOMAIN>
+      - MAILGUN_API_KEY=<ADD_MAILGUN_API_KEY>
     ports:
       - "8080:8080"
