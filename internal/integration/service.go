@@ -5,6 +5,6 @@ import (
 )
 
 type Service interface {
-	Send(notification domain.Notification) (domain.Notification, error)
+	Send(notification domain.Notification) error
 	Validate(notification domain.Notification) *ValidationError
 }

@@ -7,12 +7,14 @@ import (
 	"github.com/svilenkomitov/notifire/internal/domain"
 	"github.com/svilenkomitov/notifire/internal/integration"
 	"github.com/svilenkomitov/notifire/internal/integration/mailgun"
+	"github.com/svilenkomitov/notifire/internal/integration/twilio"
 	"github.com/svilenkomitov/notifire/internal/mq"
 )
 
 type service struct {
 	client         *redis.Client
 	mailgunService integration.Service
+	twilioService  integration.Service
 }
 
 func New(config *Config) mq.Service {
@@ -22,6 +24,7 @@ func New(config *Config) mq.Service {
 	return service{
 		client:         redisClient,
 		mailgunService: mailgun.New(mailgun.LoadConfig()),
+		twilioService:  twilio.New(twilio.LoadConfig()),
 	}.Subscribe()
 }
 
@@ -32,10 +35,14 @@ func (s service) Publish(notification domain.Notification) error {
 func (s service) Subscribe() mq.Service {
 	mailChannel := s.client.Subscribe(string(domain.EMAIL.ToLower())).Channel()
 	go consumeMessages(mailChannel, s.mailgunService.Send)
+
+	smsChannel := s.client.Subscribe(string(domain.SMS.ToLower())).Channel()
+	go consumeMessages(smsChannel, s.twilioService.Send)
+
 	return s
 }
 
-type handler func(notification domain.Notification) (domain.Notification, error)
+type handler func(notification domain.Notification) error
 
 func consumeMessages(ch <-chan *redis.Message, handler handler) {
 	for msg := range ch {
@@ -44,8 +51,8 @@ func consumeMessages(ch <-chan *redis.Message, handler handler) {
 			log.Error(err)
 			return
 		}
-		_, err = handler(notification)
-		if err != nil {
+
+		if err = handler(notification); err != nil {
 			log.Error(err)
 		}
 	}

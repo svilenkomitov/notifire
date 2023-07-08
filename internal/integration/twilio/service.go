@@ -1,64 +1,62 @@
-package mailgun
+package twilio
 
 import (
-	"context"
 	"fmt"
-	"github.com/mailgun/mailgun-go/v4"
 	"github.com/svilenkomitov/notifire/internal/domain"
 	"github.com/svilenkomitov/notifire/internal/integration"
-	"net/mail"
-	"time"
+	"github.com/twilio/twilio-go"
+	openapi "github.com/twilio/twilio-go/rest/api/v2010"
+	"regexp"
+)
+
+const (
+	validatePhoneRegex = "((\\+|\\(|0)?\\d{1,3})?((\\s|\\)|\\-))?(\\d{10})$"
 )
 
 type service struct {
-	client *mailgun.MailgunImpl
+	client *twilio.RestClient
 }
 
 func New(config *Config) integration.Service {
 	return &service{
-		client: mailgun.NewMailgun(config.Domain, config.ApiKey),
+		client: twilio.NewRestClientWithParams(twilio.ClientParams{
+			Username: config.Domain,
+			Password: config.ApiKey,
+		}),
 	}
 }
 
 func (s service) Send(notification domain.Notification) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
 	if err := s.Validate(notification); err != nil {
 		return err
 	}
 
-	_, _, err := s.client.Send(ctx, s.client.NewMessage(
-		notification.Message.Sender,
-		notification.Message.Subject,
-		notification.Message.Body,
-		notification.Message.Recipient))
+	_, err := s.client.Api.CreateMessage(&openapi.CreateMessageParams{
+		From: &notification.Message.Sender,
+		To:   &notification.Message.Recipient,
+		Body: &notification.Message.Body,
+	})
 	return err
 }
 
 func (s service) Validate(notification domain.Notification) *integration.ValidationError {
-	if notification.Channel.ToLower() != domain.EMAIL {
+	if notification.Channel.ToLower() != domain.SMS {
 		return integration.NewValidationError(fmt.Sprintf("invalid channel [%s]", notification.Channel))
 	}
 
-	_, err := mail.ParseAddress(notification.Message.Sender)
-	if err != nil {
+	if isValid, _ := regexp.MatchString(validatePhoneRegex, notification.Message.Sender); !isValid {
 		return integration.NewValidationError(fmt.Sprintf("sender [%s] is not valid",
 			notification.Message.Sender))
 	}
 
-	_, err = mail.ParseAddress(notification.Message.Recipient)
-	if err != nil {
+	if isValid, _ := regexp.MatchString(validatePhoneRegex, notification.Message.Recipient); !isValid {
 		return integration.NewValidationError(fmt.Sprintf("recipient [%s] is not valid",
 			notification.Message.Sender))
-	}
-
-	if notification.Message.Subject == "" {
-		return integration.NewValidationError("subject cannot be empty")
 	}
 
 	if notification.Message.Body == "" {
 		return integration.NewValidationError("body cannot be empty")
 	}
+
 	return nil
 }
