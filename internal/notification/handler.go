@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	log "github.com/sirupsen/logrus"
+	"github.com/svilenkomitov/notifire/internal/domain"
+	"github.com/svilenkomitov/notifire/internal/mq"
 	"net/http"
 )
 
@@ -15,22 +17,10 @@ const (
 	SendNotificationEndpoint = "/notifications"
 )
 
-var supportedChannels = []Channel{EMAIL, SMS, SLACK}
-
-type MessageSendRequest struct {
-	Subject   string
-	Body      string
-	Sender    string
-	Recipient string
-}
-
-type SendRequest struct {
-	Message MessageSendRequest `json:"message"`
-	Channel Channel            `json:"channel"`
-}
+var supportedChannels = []domain.Channel{domain.EMAIL, domain.SMS, domain.SLACK}
 
 type Handler struct {
-	EmailService Service
+	MQService mq.Service
 }
 
 func (h *Handler) Routes(router *chi.Mux) {
@@ -38,42 +28,29 @@ func (h *Handler) Routes(router *chi.Mux) {
 }
 
 func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
-	var requestBody SendRequest
-	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	var notification domain.Notification
+	err := json.NewDecoder(r.Body).Decode(&notification)
 	if err != nil {
 		log.Errorf("invalid data: %v", err)
 		respond(w, http.StatusBadRequest, nil)
 		return
 	}
 
-	if !isSupportedChannel(requestBody.Channel) {
-		errMsg := fmt.Sprintf("channel [%s] is not supported", requestBody.Channel)
+	if !isSupportedChannel(notification.Channel) {
+		errMsg := fmt.Sprintf("channel [%s] is not supported", notification.Channel)
 		log.Errorf(errMsg)
 		respond(w, http.StatusBadRequest, errMsg)
 		return
 	}
 
-	notification := Notification{
-		Message: Message{
-			Sender:    requestBody.Message.Sender,
-			Recipient: requestBody.Message.Recipient,
-			Subject:   requestBody.Message.Subject,
-			Body:      requestBody.Message.Body,
-		},
-		Channel: requestBody.Channel,
+	err = h.MQService.Publish(notification)
+	if err != nil {
+		log.Errorf("failed to send notification: %v", err)
+		respond(w, http.StatusAccepted, nil)
+		return
 	}
 
-	switch requestBody.Channel.ToLower() {
-	case EMAIL:
-		notification, err = h.EmailService.Send(notification)
-		if err != nil {
-			log.Errorf("failed to send message: %v", err)
-			respond(w, http.StatusAccepted, notification)
-			return
-		}
-	}
-
-	respond(w, http.StatusAccepted, notification)
+	respond(w, http.StatusAccepted, nil)
 }
 
 func respond(w http.ResponseWriter, code int, data interface{}) {
@@ -85,7 +62,7 @@ func respond(w http.ResponseWriter, code int, data interface{}) {
 	}
 }
 
-func isSupportedChannel(channel Channel) bool {
+func isSupportedChannel(channel domain.Channel) bool {
 	for _, ch := range supportedChannels {
 		if ch == channel.ToLower() {
 			return true

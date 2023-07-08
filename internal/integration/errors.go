@@ -1,4 +1,4 @@
-package notification
+package integration
 
 type ValidationError struct {
 	msg string

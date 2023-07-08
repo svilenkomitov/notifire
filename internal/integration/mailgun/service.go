@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/mailgun/mailgun-go/v4"
-	"github.com/svilenkomitov/notifire/internal/notification"
+	"github.com/svilenkomitov/notifire/internal/domain"
+	"github.com/svilenkomitov/notifire/internal/integration"
 	"net/mail"
 	"time"
 )
@@ -13,20 +14,20 @@ type service struct {
 	client *mailgun.MailgunImpl
 }
 
-func New(config *Config) notification.Service {
+func New(config *Config) integration.Service {
 	return &service{
 		client: mailgun.NewMailgun(config.Domain, config.ApiKey),
 	}
 }
 
-func (s service) Send(n notification.Notification) (notification.Notification, error) {
+func (s service) Send(n domain.Notification) (domain.Notification, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	n.Status = notification.Pending
+	n.Status = domain.Pending
 
 	if err := s.Validate(n); err != nil {
-		n.Status = notification.Failed
+		n.Status = domain.Failed
 		return n, err
 	}
 
@@ -38,36 +39,36 @@ func (s service) Send(n notification.Notification) (notification.Notification, e
 
 	_, _, err := s.client.Send(ctx, message)
 	if err != nil {
-		n.Status = notification.Failed
+		n.Status = domain.Failed
 	}
 
-	n.Status = notification.Sent
+	n.Status = domain.Sent
 	return n, err
 }
 
-func (s service) Validate(n notification.Notification) *notification.ValidationError {
-	if n.Channel.ToLower() != notification.EMAIL {
-		return notification.NewValidationError(fmt.Sprintf("invalid channel [%s]", n.Channel))
+func (s service) Validate(n domain.Notification) *integration.ValidationError {
+	if n.Channel.ToLower() != domain.EMAIL {
+		return integration.NewValidationError(fmt.Sprintf("invalid channel [%s]", n.Channel))
 	}
 
 	_, err := mail.ParseAddress(n.Message.Sender)
 	if err != nil {
-		return notification.NewValidationError(fmt.Sprintf("sender [%s] is not valid",
+		return integration.NewValidationError(fmt.Sprintf("sender [%s] is not valid",
 			n.Message.Sender))
 	}
 
 	_, err = mail.ParseAddress(n.Message.Recipient)
 	if err != nil {
-		return notification.NewValidationError(fmt.Sprintf("recipient [%s] is not valid",
+		return integration.NewValidationError(fmt.Sprintf("recipient [%s] is not valid",
 			n.Message.Sender))
 	}
 
 	if n.Message.Subject == "" {
-		return notification.NewValidationError("subject cannot be empty")
+		return integration.NewValidationError("subject cannot be empty")
 	}
 
 	if n.Message.Body == "" {
-		return notification.NewValidationError("body cannot be empty")
+		return integration.NewValidationError("body cannot be empty")
 	}
 	return nil
 }
