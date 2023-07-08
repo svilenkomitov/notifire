@@ -10,7 +10,7 @@ const (
 )
 
 type Config struct {
-	Port uint16 `default:"8080"  envconfig:"SERVER_PORT" `
+	Port uint16 `default:"8080"  envconfig:"PORT"`
 }
 
 func LoadConfig() *Config {
