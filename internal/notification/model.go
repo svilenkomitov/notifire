@@ -1,6 +1,12 @@
 package notification
 
+import "strings"
+
 type Channel string
+
+func (c Channel) ToLower() Channel {
+	return Channel(strings.ToLower(string(c)))
+}
 
 const (
 	EMAIL Channel = "email"
