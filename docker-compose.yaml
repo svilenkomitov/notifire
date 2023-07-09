@@ -4,6 +4,14 @@ services:
     image: "redis:alpine"
     ports:
       - "6379:6379"
+  db:
+    image: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: notifire
   app:
     build:
       dockerfile: Dockerfile
@@ -17,7 +25,13 @@ services:
       - SLACK_API_KEY=<ADD_SLACK_API_KEY>
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=notifire
     ports:
       - "8080:8080"
     depends_on:
       - redis
+      - db

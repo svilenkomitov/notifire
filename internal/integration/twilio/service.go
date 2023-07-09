@@ -32,9 +32,9 @@ func (s service) Send(notification domain.Notification) error {
 	}
 
 	_, err := s.client.Api.CreateMessage(&openapi.CreateMessageParams{
-		From: &notification.Message.Sender,
-		To:   &notification.Message.Recipient,
-		Body: &notification.Message.Body,
+		From: &notification.Sender,
+		To:   &notification.Recipient,
+		Body: &notification.Body,
 	})
 	return err
 }
@@ -44,17 +44,17 @@ func (s service) Validate(notification domain.Notification) *integration.Validat
 		return integration.NewValidationError(fmt.Sprintf("invalid channel [%s]", notification.Channel))
 	}
 
-	if isValid, _ := regexp.MatchString(validatePhoneRegex, notification.Message.Sender); !isValid {
+	if isValid, _ := regexp.MatchString(validatePhoneRegex, notification.Sender); !isValid {
 		return integration.NewValidationError(fmt.Sprintf("sender [%s] is not valid",
-			notification.Message.Sender))
+			notification.Sender))
 	}
 
-	if isValid, _ := regexp.MatchString(validatePhoneRegex, notification.Message.Recipient); !isValid {
+	if isValid, _ := regexp.MatchString(validatePhoneRegex, notification.Recipient); !isValid {
 		return integration.NewValidationError(fmt.Sprintf("recipient [%s] is not valid",
-			notification.Message.Sender))
+			notification.Sender))
 	}
 
-	if notification.Message.Body == "" {
+	if notification.Body == "" {
 		return integration.NewValidationError("body cannot be empty")
 	}
 

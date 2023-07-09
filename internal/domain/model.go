@@ -27,17 +27,14 @@ const (
 	Failed  Status = "failed"
 )
 
-type Message struct {
-	Subject   string `json:"subject"`
-	Body      string `json:"body"`
-	Sender    string `json:"sender"`
-	Recipient string `json:"recipient"`
-}
-
 type Notification struct {
-	Message Message `json:"message"`
-	Channel Channel `json:"channel"`
-	Status  Status  `json:"status"`
+	ID        int     `json:"id" db:"id"`
+	Subject   string  `json:"subject" db:"subject"`
+	Body      string  `json:"body" db:"body"`
+	Sender    string  `json:"sender" db:"sender"`
+	Recipient string  `json:"recipient" db:"recipient"`
+	Channel   Channel `json:"channel" db:"channel"`
+	Status    Status  `json:"status" db:"status"`
 }
 
 func (n Notification) MarshalBinary() ([]byte, error) {

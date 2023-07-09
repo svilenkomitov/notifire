@@ -29,10 +29,10 @@ func (s service) Send(notification domain.Notification) error {
 	}
 
 	_, _, err := s.client.Send(ctx, s.client.NewMessage(
-		notification.Message.Sender,
-		notification.Message.Subject,
-		notification.Message.Body,
-		notification.Message.Recipient))
+		notification.Sender,
+		notification.Subject,
+		notification.Body,
+		notification.Recipient))
 	return err
 }
 
@@ -41,23 +41,23 @@ func (s service) Validate(notification domain.Notification) *integration.Validat
 		return integration.NewValidationError(fmt.Sprintf("invalid channel [%s]", notification.Channel))
 	}
 
-	_, err := mail.ParseAddress(notification.Message.Sender)
+	_, err := mail.ParseAddress(notification.Sender)
 	if err != nil {
 		return integration.NewValidationError(fmt.Sprintf("sender [%s] is not valid",
-			notification.Message.Sender))
+			notification.Sender))
 	}
 
-	_, err = mail.ParseAddress(notification.Message.Recipient)
+	_, err = mail.ParseAddress(notification.Recipient)
 	if err != nil {
 		return integration.NewValidationError(fmt.Sprintf("recipient [%s] is not valid",
-			notification.Message.Sender))
+			notification.Sender))
 	}
 
-	if notification.Message.Subject == "" {
+	if notification.Subject == "" {
 		return integration.NewValidationError("subject cannot be empty")
 	}
 
-	if notification.Message.Body == "" {
+	if notification.Body == "" {
 		return integration.NewValidationError("body cannot be empty")
 	}
 	return nil

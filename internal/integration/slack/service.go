@@ -17,24 +17,24 @@ func New(config *Config) integration.Service {
 }
 
 func (s service) Send(notification domain.Notification) error {
-	_, _, err := s.client.PostMessage(notification.Message.Recipient,
+	_, _, err := s.client.PostMessage(notification.Recipient,
 		slack.MsgOptionAttachments(slack.Attachment{
-			Pretext: notification.Message.Subject,
-			Text:    notification.Message.Body,
+			Pretext: notification.Subject,
+			Text:    notification.Body,
 		}))
 	return err
 }
 
 func (s service) Validate(notification domain.Notification) *integration.ValidationError {
-	if notification.Message.Recipient == "" {
+	if notification.Recipient == "" {
 		return integration.NewValidationError("recipient cannot be empty")
 	}
 
-	if notification.Message.Subject == "" {
+	if notification.Subject == "" {
 		return integration.NewValidationError("subject cannot be empty")
 	}
 
-	if notification.Message.Body == "" {
+	if notification.Body == "" {
 		return integration.NewValidationError("body cannot be empty")
 	}
 
