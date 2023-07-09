@@ -1,6 +1,6 @@
 # notifire
 
-Notification Sending System
+Notification Sending System responsible for delivering notifications or messages to recipients through various communication channels.
 
 ## Design
 
