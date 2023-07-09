@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redis"
 	log "github.com/sirupsen/logrus"
@@ -41,45 +42,72 @@ func (s service) Publish(notification domain.Notification) error {
 		return err
 	}
 	notification.ID = id
-	return s.client.Publish(string(notification.Channel.ToLower()), notification).Err()
+
+	nBytes, err := notification.MarshalBinary()
+	if err != nil {
+		return err
+	}
+
+	var data map[string]interface{}
+	err = json.Unmarshal(nBytes, &data)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.client.XAdd(&redis.XAddArgs{
+		Stream: string(notification.Channel.ToLower()),
+		Values: data,
+	}).Result()
+	return err
 }
 
 func (s service) Subscribe() mq.Service {
-	mailChannel := s.client.Subscribe(string(domain.EMAIL.ToLower())).Channel()
-	go s.consumeMessages(mailChannel, s.mailgunService.Send)
-
-	smsChannel := s.client.Subscribe(string(domain.SMS.ToLower())).Channel()
-	go s.consumeMessages(smsChannel, s.twilioService.Send)
-
-	slackChannel := s.client.Subscribe(string(domain.SLACK.ToLower())).Channel()
-	go s.consumeMessages(slackChannel, s.slackService.Send)
-
+	go s.consumeMessages(string(domain.EMAIL.ToLower()), s.mailgunService.Send)
+	go s.consumeMessages(string(domain.SMS.ToLower()), s.twilioService.Send)
+	go s.consumeMessages(string(domain.SLACK.ToLower()), s.slackService.Send)
 	return s
 }
 
 type handler func(notification domain.Notification) error
 
-func (s service) consumeMessages(ch <-chan *redis.Message, handler handler) {
-	for msg := range ch {
-		notification, err := domain.Unmarshal([]byte(msg.Payload))
+func (s service) consumeMessages(channel string, handler handler) {
+	for {
+		streams, err := s.client.XRead(&redis.XReadArgs{
+			Streams: []string{channel, "$"},
+			Count:   1,
+			Block:   0,
+		}).Result()
 		if err != nil {
 			log.Error(err)
-			if err := s.repository.UpdateStatus(notification.ID, domain.Failed); err != nil {
-				log.Error(err)
-			}
-			continue
 		}
 
-		if err = handler(notification); err != nil {
-			log.Error(err)
-			if err := s.repository.UpdateStatus(notification.ID, domain.Failed); err != nil {
-				log.Error(err)
-			}
-			continue
-		}
+		for _, messages := range streams {
+			for _, message := range messages.Messages {
+				jsonData, err := json.Marshal(message.Values)
+				if err != nil {
+					log.Error(err)
+					continue
+				}
 
-		if err := s.repository.UpdateStatus(notification.ID, domain.Sent); err != nil {
-			log.Error(err)
+				var notification domain.Notification
+				err = json.Unmarshal(jsonData, &notification)
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+
+				if err = handler(notification); err != nil {
+					log.Error(err)
+					if err := s.repository.UpdateStatus(notification.ID, domain.Failed); err != nil {
+						log.Error(err)
+					}
+					continue
+				}
+
+				if err := s.repository.UpdateStatus(notification.ID, domain.Sent); err != nil {
+					log.Error(err)
+				}
+			}
 		}
 	}
 }

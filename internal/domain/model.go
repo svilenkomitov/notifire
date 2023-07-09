@@ -28,7 +28,7 @@ const (
 )
 
 type Notification struct {
-	ID        int     `json:"id" db:"id"`
+	ID        string  `json:"id" db:"id"`
 	Subject   string  `json:"subject" db:"subject"`
 	Body      string  `json:"body" db:"body"`
 	Sender    string  `json:"sender" db:"sender"`
